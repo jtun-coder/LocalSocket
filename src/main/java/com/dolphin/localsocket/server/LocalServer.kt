@@ -16,6 +16,7 @@ class LocalServer private constructor() : LocalTransceiverListener{
     private var runFlag = false
     private val clientList = ArrayList<LocalClientTransceiver>()
     var localServerListener : LocalServerListener? = null
+    private var localSocketServer : LocalServerSocket? = null
     companion object {
         @JvmStatic
         val instance by lazy(LazyThreadSafetyMode.SYNCHRONIZED){
@@ -29,17 +30,20 @@ class LocalServer private constructor() : LocalTransceiverListener{
         runFlag = true
         val pool = Executors.newSingleThreadExecutor()
         pool.execute {
-            val localSocketServer = LocalServerSocket(name)
+            localSocketServer = LocalServerSocket(name)
             Log.i(TAG,"init server success $localSocketServer")
             while (runFlag) {
                 try {
-                    val socket: LocalSocket = localSocketServer.accept()
+                    if(localSocketServer == null)
+                        break
+                    val socket: LocalSocket = localSocketServer!!.accept()
                     startLocalClient(socket)
                 } catch (e: Exception) {
                     // 接受客户端连接出错
                     e.printStackTrace()
                 }
             }
+            Log.i(TAG,"server stop $localSocketServer")
         }
     }
     /**
@@ -92,5 +96,13 @@ class LocalServer private constructor() : LocalTransceiverListener{
             }
         }
     }
-
+    fun release(){
+        if(!runFlag)
+            return
+        runFlag = false
+        for (client in clientList){
+            client.killClient()
+        }
+        localSocketServer?.close()
+    }
 }

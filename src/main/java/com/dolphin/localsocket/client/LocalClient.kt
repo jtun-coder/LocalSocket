@@ -27,7 +27,8 @@ class LocalClient private constructor() {
     private var filePath: String? = null
     private var clientType = 0
     private var localClientListener : LocalClientListener? = null
-    private val localSocket = LocalSocket()
+    private var socketClient:LocalSocket? = null
+
     companion object {
         @JvmStatic
         val instance by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
@@ -42,54 +43,60 @@ class LocalClient private constructor() {
         this.clientType = clientType
         runFlag = true
         val pool = Executors.newSingleThreadExecutor()
+        val localSocketAddress = LocalSocketAddress(name)
         pool.execute {
-            try {
-                val localSocketAddress = LocalSocketAddress(name)
-                localSocket.connect(localSocketAddress)//连接服务器
-                if (isConnected(localSocket)) {
-                    localClientListener?.onConnect(this)
+            while (runFlag){
+                try {
+                    val localSocket = LocalSocket()
+                    socketClient = localSocket
+                    localSocket.connect(localSocketAddress)//连接服务器
+                    if (isConnected(localSocket)) {
+                        localClientListener?.onConnect(this)
 //                    //发送当前模式信息到监控端
 //                    send(
 //                        localSocket.outputStream,
 //                        BaseLocalCmd<Any?>(LocalCmd.MODEL, value = clientType).toString()
 //                    )
-                    //连接成功
-                    Log.i(TAG, "连接成功")
-                    receiveData(localSocket)
-                } else {
-                    //连接失败
-                    Log.i(TAG, "连接失败")
+                        //连接成功
+                        Log.i(TAG, "连接成功")
+                        receiveData(localSocket)
+                    } else {
+                        //连接失败
+                        Log.i(TAG, "连接失败")
+                    }
+                } catch (e: Exception) {
+                    // 连接出错
+                    e.printStackTrace()
+                }finally {
+                    Log.i(TAG, "stopLocalSocket")
+                    stopLocalSocket(socketClient)
                 }
-            } catch (e: Exception) {
-                // 接受客户端连接出错
-                e.printStackTrace()
-            }finally {
-                runFlag = false
-                stopLocalSocket(localSocket)
+                Thread.sleep(5000)
             }
         }
     }
-    private fun stopLocalSocket(localSocket: LocalSocket){
+
+    private fun stopLocalSocket(localSocket: LocalSocket?){
         try {
-            localSocket.shutdownOutput()
-            localSocket.shutdownInput()
-            localSocket.close()
+            localSocket?.shutdownOutput()
+            localSocket?.shutdownInput()
+            localSocket?.close()
             localClientListener?.onDisconnect(this)
         }catch (e:Exception){}
 
     }
 
     private fun receiveData(socket: LocalSocket) {
-        while (isConnected(socket)) {
+        while (runFlag && isConnected(socket)) {
             try {
                 /**得到的是16进制数，需要进行解析 */
                 val bt = ByteArray(10)
                 //                获取接收到的字节和字节数
-                var length: Int = socket.inputStream.read(bt)
+                val length: Int = socket.inputStream.read(bt)
+                Log.i(TAG, "length : $length")
                 if (length == -1) {
                     break
                 }
-                Log.i(TAG, "length : $length")
                 if (length == 10) {
                     val lenBytes = ByteArray(8)
                     System.arraycopy(bt, 2, lenBytes, 0, 8)
@@ -182,10 +189,12 @@ class LocalClient private constructor() {
     /**
      * 发送数据
      */
-    open fun send(data:String){
+    fun send(data:String){
         val pool = Executors.newSingleThreadExecutor()
         pool.execute {
-            send(localSocket.outputStream,data)
+            socketClient?.let {
+                send(it.outputStream,data)
+            }
         }
     }
     @Synchronized
@@ -243,6 +252,7 @@ class LocalClient private constructor() {
         this.localClientListener = localClientListener
     }
     fun release(){
-        stopLocalSocket(localSocket)
+        runFlag = true
+        stopLocalSocket(socketClient)
     }
 }
