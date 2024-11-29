@@ -23,5 +23,13 @@ object LocalCmd {
     const val OPENVPN_STOP = 32//停止open vpn
     const val OPENVPN_LIST = 33//获取open vpn 配置列表
     const val OPENVPN_REMOVE = 34//删除open vpn 配置
+    const val FRP_LIST = 40 //获取Frp配置列表
+    const val FRP_REMOVE = 41 //删除Frp配置
+    const val FRP_IMPORT = 42 //导入Frp配置
+    const val FRP_START = 43 //启动服务
+    const val FRP_STOP = 44 //停止服务
+    const val FRP_CONFIG = 45 //获取配置信息详情
+    const val FRP_EDIT = 46//修改配置信息
+
 
 }

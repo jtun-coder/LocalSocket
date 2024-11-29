@@ -8,4 +8,5 @@ object Const {
     const val MODEL_V2RAY = 2
     const val MODEL_ALIST = 3
     const val MODEL_OPENVPN = 4
+    const val MODEL_FRP = 5
 }
